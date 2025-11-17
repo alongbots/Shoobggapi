@@ -1,11 +1,8 @@
 {
-  "name": "pokemon-api",
+  "name": "pokemon-cards-api",
   "version": "1.0.0",
-  "main": "api/pokemon.js",
+  "main": "api/cards.js",
   "scripts": {
     "start": "vercel dev"
-  },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
   }
 }
