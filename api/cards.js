@@ -1,49 +1,59 @@
-// pages/api/cards.js
-import chromium from 'chrome-aws-lambda';
+// pages/api/pokemon-cards.js
+import axios from "axios";
+
+const PTCG_API_BASE = "https://api.pokemontcg.io/v2";
+const API_KEY = process.env.POKEMON_TCG_API_KEY; // set in Vercel env
 
 export default async function handler(req, res) {
-  let browser = null;
-
   try {
-    // Launch headless Chrome
-    browser = await chromium.puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath,
-      headless: chromium.headless,
-    });
+    const { id, name, page = 1, pageSize = 20 } = req.query;
 
-    const page = await browser.newPage();
-    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-    await page.goto('https://shoob.gg/cards', { waitUntil: 'networkidle0' });
-
-    // Wait for card elements to render
-    await page.waitForSelector('.card'); // adjust selector based on actual app
-
-    // Extract data from page
-    const cards = await page.$$eval('.card', cardEls => {
-      return cardEls.map(el => {
-        const name = el.querySelector('.card-name')?.textContent.trim() || '';
-        const series = el.querySelector('.card-series')?.textContent.trim() || '';
-        const tier = el.querySelector('.card-tier')?.textContent.trim() || '';
-        return { name, series, tier };
+    // If ID is provided, fetch single card
+    if (id) {
+      const resp = await axios.get(`${PTCG_API_BASE}/cards/${id}`, {
+        headers: { "X-Api-Key": API_KEY }
       });
+      const c = resp.data.data;
+      const card = {
+        id: c.id,
+        name: c.name,
+        hp: c.hp,
+        types: c.types,
+        abilities: c.abilities?.map(a => ({ name: a.name, text: a.text, type: a.type })) || [],
+        attacks: c.attacks?.map(a => ({ name: a.name, damage: a.damage, cost: a.cost, text: a.text })) || [],
+        weaknesses: c.weaknesses,
+        resistances: c.resistances,
+        retreatCost: c.retreatCost,
+        set: c.set,
+        artist: c.artist,
+        rarity: c.rarity
+      };
+      return res.status(200).json({ success: true, card });
+    }
+
+    // Otherwise, fetch list of cards
+    const params = { page, pageSize };
+    if (name) params.q = `name:${name}`;
+
+    const resp = await axios.get(`${PTCG_API_BASE}/cards`, {
+      headers: { "X-Api-Key": API_KEY },
+      params
     });
 
-    // Filter if needed
-    const { tier, series, name } = req.query;
-    let filtered = cards;
+    const cards = resp.data.data.map(c => ({
+      id: c.id,
+      name: c.name,
+      hp: c.hp,
+      types: c.types,
+      abilities: c.abilities?.map(a => ({ name: a.name, text: a.text, type: a.type })) || [],
+      attacks: c.attacks?.map(a => ({ name: a.name, damage: a.damage, cost: a.cost, text: a.text })) || [],
+      set: c.set,
+      rarity: c.rarity
+    }));
 
-    if (tier) filtered = filtered.filter(c => c.tier.toLowerCase() === tier.toLowerCase());
-    if (series) filtered = filtered.filter(c => c.series.toLowerCase() === series.toLowerCase());
-    if (name) filtered = filtered.filter(c => c.name.toLowerCase().includes(name.toLowerCase()));
-
-    await browser.close();
-    return res.status(200).json({ success: true, total: filtered.length, cards: filtered });
-
+    res.status(200).json({ success: true, total: cards.length, cards });
   } catch (error) {
-    console.error('Error in Puppeteer scrape:', error);
-    if (browser) await browser.close();
-    return res.status(500).json({ success: false, error: 'Failed to fetch/parse cards via Puppeteer' });
+    console.error("Pokemon API Error:", error.response?.data || error.message);
+    res.status(500).json({ success: false, error: "Failed to fetch Pokémon cards" });
   }
 }
