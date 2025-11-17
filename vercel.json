@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/pokemon.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/pokemon", "dest": "/api/pokemon.js" }
+  ]
+}
