@@ -1,0 +1,11 @@
+{
+  "name": "pokemon-api",
+  "version": "1.0.0",
+  "main": "api/pokemon.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
