@@ -6,27 +6,32 @@ export default async function handler(req, res) {
   try {
     const { tier, series, name } = req.query;
 
-    // Fetch the shoob cards page
-    const { data } = await axios.get("https://shoob.gg/cards");
-    
-    // Load HTML into cheerio
+    const { data } = await axios.get("https://shoob.gg/cards", {
+      headers: {
+        "User‑Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Accept": "text/html,application/xhtml+xml"
+      },
+      timeout: 15000
+    });
+
     const $ = cheerio.load(data);
     const cards = [];
 
-    // Loop through each card element (adjust selectors based on actual site)
-    $(".card-list .card").each((i, el) => {
-      const cardName = $(el).find(".card-name").text().trim();
-      const cardSeries = $(el).find(".card-series").text().trim();
-      const cardTier = $(el).find(".card-tier").text().trim();
+    // Example structure — adjust selectors as needed.
+    $(".card").each((i, el) => {
+      const cardName = $(el).find(".card‑name").text().trim();
+      const cardSeries = $(el).find(".card‑series").text().trim();
+      const cardTier = $(el).find(".card‑tier").text().trim();
 
-      cards.push({
-        name: cardName,
-        series: cardSeries,
-        tier: cardTier
-      });
+      if (cardName && cardSeries && cardTier) {
+        cards.push({ name: cardName, series: cardSeries, tier: cardTier });
+      }
     });
 
-    // Apply filters if query parameters exist
+    if (cards.length === 0) {
+      console.warn("No cards found. The site may use JS to render content.");
+    }
+
     let filtered = cards;
     if (tier) filtered = filtered.filter(c => c.tier.toLowerCase() === tier.toLowerCase());
     if (series) filtered = filtered.filter(c => c.series.toLowerCase() === series.toLowerCase());
@@ -34,7 +39,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ success: true, total: filtered.length, cards: filtered });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: "Failed to fetch cards" });
+    console.error("API error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch or parse cards" });
   }
 }
